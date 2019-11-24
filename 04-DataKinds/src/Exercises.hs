@@ -62,12 +62,15 @@ data Void -- No constructors!
 -- | b. What are the possible type-level values of kind 'Maybe Void'?
 
 -- Type ?
+-- 'Nothing :: Maybe
+-- 'Just :: Type -> Maybe 
 
 -- | c. Considering 'Maybe Void', and similar examples of kinds such as
 -- 'Either Void Bool', why do you think 'Void' might be a useful kind?
 
 -- Because Void has no inhabitants it represents something that can never happen
-
+-- Maybe Void -> There can never be a 'Just type (No valid values)
+-- Either Void Bool -> There can never be a 'Left type (no failures)
 
 
 {- THREE -}
@@ -159,7 +162,11 @@ tail (HCons _ xs) = xs
 -- | c. Could we write the 'take' function? What would its type be? What would
 -- get in our way?
 
+-- take :: Natural -> HList ('Cons x xs) -> HList (??)
+
 -- We could, if we need how many elements the HList had.
+-- If we  knew how many elements the HList had as in Vector, then we could take
+-- the required elements if it was within the range of the HList
 
 
 
@@ -173,25 +180,43 @@ data BlogAction
   | AddComment
   | DeleteComment
 
+
 -- | a. Two of these actions, 'DeleteBlog' and 'DeleteComment', should be
 -- admin-only. Extend the 'BlogAction' type (perhaps with a GADT...) to
 -- express, at the type-level, whether the value is an admin-only operation.
 -- Remember that, by switching on @DataKinds@, we have access to a promoted
 -- version of 'Bool'!
 
+data BlogAction' (isAdmin :: Bool) where
+  AddBlog' :: BlogAction' 'False
+  DeleteBlog'  :: BlogAction' 'True
+  AddComment'  :: BlogAction' 'False
+  DeleteComment'  :: BlogAction' 'True
+
+
 -- | b. Write a 'BlogAction' list type that requires all its members to be
 -- the same "access level": "admin" or "non-admin".
 
--- data BlogActionList (isSafe :: ???) where
---   ...
+data BlogActionList (isSafe :: Bool) where
+ BlogActionNil :: BlogActionList isSafe
+ BlogActionCons ::  BlogAction' isSafe -> BlogActionList isSafe -> BlogActionList isSafe
 
 -- | c. Let's imagine that our requirements change, and 'DeleteComment' is now
 -- available to a third role: moderators. Could we use 'DataKinds' to introduce
 -- the three roles at the type-level, and modify our type to keep track of
 -- this?
 
+data Role = Regular | Admin | Moderator
 
+data BlogAction'' (who :: [Role]) where
+  AddBlog'' :: BlogAction'' '[Regular, Admin, Moderator]
+  DeleteBlog''  :: BlogAction'' '[Admin]
+  AddComment''  :: BlogAction'' '[Regular, Admin, Moderator]
+  DeleteComment''  :: BlogAction'' '[Admin, Moderator]
 
+-- data BlogActionList' (isRole :: Role) where
+--  BlogActionNil' :: BlogActionList' isRole
+--  BlogActionCons' ::  BlogAction'' isRole -> BlogActionList' isRole -> BlogActionList' isRole
 
 
 {- SEVEN -}

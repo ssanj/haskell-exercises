@@ -8,7 +8,7 @@ module Exercises where
 
 import Data.Kind (Type, Constraint)
 import Data.Function ((&))
-
+import Prelude hiding ((!!), length)
 
 
 
@@ -236,19 +236,22 @@ data SBool (value :: Bool) where
 -- | a. Write a singleton type for natural numbers:
 
 data SNat (value :: Nat) where
-  -- ...
+  SZ :: SNat 'Z
+  SS :: SNat a -> SNat ('S a)
 
 -- | b. Write a function that extracts a vector's length at the type level:
 
 length :: Vector n a -> SNat n
-length = error "Implement me!"
+length VNil = SZ
+length (VCons x xs) = SS (length xs)
 
 -- | c. Is 'Proxy' a singleton type?
 
 data Proxy a = Proxy
 
-
-
+-- No - @Proxy :: Proxy Int@ and @Proxy :: Proxy String@ have the same
+-- value-level representation, so we don't have the necessary one-to-one
+-- mapping.
 
 
 {- EIGHT -}
@@ -264,6 +267,14 @@ data Program                     result
   | CloseFile (          Program result)
   | Exit                         result
 
+
+data Program' (open :: Bool) result where
+  OpenFile'  :: Program' 'True result -> Program' 'False result
+  WriteFile' :: String  -> Program' 'True result -> Program' 'True result
+  ReadFile'  :: (String ->  Program' 'True result) -> Program' 'True result
+  CloseFile' :: Program' 'False result -> (          Program' 'True result)
+  Exit'      :: result -> Program' 'False result
+
 -- | We could then write a program like this to use our language:
 
 myApp :: Program Bool
@@ -272,6 +283,14 @@ myApp
       if contents == "WHAT"
         then WriteFile "... bug?" $ Exit False
         else CloseFile            $ Exit True)
+
+
+myApp' :: Program' 'False Bool
+myApp'
+  = OpenFile' $ WriteFile' "HEY" $ (ReadFile' $ \contents ->
+      if contents == "WHAT"
+        then WriteFile' "... bug?" $ CloseFile' $ Exit' False
+        else CloseFile'            $ Exit' True)
 
 -- | ... but wait, there's a bug! If the contents of the file equal "WHAT", we
 -- forget to close the file! Ideally, we would like the compiler to help us: we
@@ -296,12 +315,25 @@ myApp
 -- | EXTRA: write an interpreter for this program. Nothing to do with data
 -- kinds, but a nice little problem.
 
-interpret :: Program {- ??? -} a -> IO a
-interpret = error "Implement me?"
+-- interpret :: Program {- ??? -} a -> IO a
+-- interpret = error "Implement me?"
 
+interpret :: Program' any a -> IO a
 
+interpret (OpenFile' next)
+  = putStrLn "Opened file..." >> interpret next
 
+interpret (WriteFile' output next)
+  = putStrLn ("Writing " <> output <> "...") >> interpret next
 
+interpret (ReadFile' k)
+  = interpret (k "Some file contents")
+
+interpret (CloseFile' next)
+  = putStrLn "Closing file..." >> interpret next
+
+interpret (Exit' x)
+  = putStrLn "Goodbye!" >> pure x
 
 {- NINE -}
 
